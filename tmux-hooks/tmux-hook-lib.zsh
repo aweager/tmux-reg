@@ -4,6 +4,7 @@ setopt err_exit
 exec 2>&1
 
 REG_RUNTIME_DIR="${XDG_RUNTIME_DIR-${XDG_CACHE_DIR-${HOME}/.cache}}/tmux/reg"
+chmod 0700 "$REG_RUNTIME_DIR"
 REG_STATE_DIR="${XDG_STATE_HOME-${HOME}/.local/state}/tmux/reg"
 
 COMMAND_SERVER_CONFIG_DIR="${0:a:h}/../command-server"
@@ -11,22 +12,20 @@ COMMAND_SERVER_CONFIG_DIR="${0:a:h}/../command-server"
 function session-created() {
     local session_id="$1"
     local tmux_pid="$2"
-    local session_subdir="$tmux_pid/$session_id"
+    local session_prefix="$tmux_pid.$session_id"
 
-    mkdir -p "$REG_RUNTIME_DIR/$session_subdir" "$REG_STATE_DIR/$session_subdir"
-    chmod 0700 "$REG_RUNTIME_DIR"
 
     local parent_socket="$REG_SOCKET"
-    export REG_SOCKET="$REG_RUNTIME_DIR/$session_subdir/socket"
+    export REG_SOCKET="$REG_RUNTIME_DIR/$session_prefix.reg.sock"
 
     command-server-start \
         "${COMMAND_SERVER_CONFIG_DIR}/server.conf" \
         --socket "$REG_SOCKET" \
-        --log-file "$REG_STATE_DIR/$session_subdir/server.log" \
-        3> "$REG_STATE_DIR/$session_subdir/server.pid"
+        --log-file "$REG_STATE_DIR/$session_prefix.server.log" \
+        3> "$REG_STATE_DIR/$session_prefix.server.pid"
 
     tmux set-option @reg_socket "$REG_SOCKET" \;\
-         set-option @reg_server_pid "$(cat "$REG_STATE_DIR/$session_subdir/server.pid")" \;\
+         set-option @reg_server_pid "$(cat "$REG_STATE_DIR/$session_prefix.server.pid")" \;\
          set-option @reg_parent_socket "$parent_socket" \;\
          setenv REG_SOCKET "$REG_SOCKET"
 
@@ -62,20 +61,13 @@ function client-active() {
 function session-closed() {
     local session_id="$1"
     local tmux_pid="$2"
-    local session_subdir="$tmux_pid/$session_id"
+    local session_prefix="$tmux_pid.$session_id"
 
     setopt no_err_return no_err_exit
 
     () {
-        command-server-terminate "$REG_RUNTIME_DIR/$session_subdir/socket"
-
-        rm "$REG_RUNTIME_DIR/$session_subdir/socket" &> /dev/null
-        rmdir "$REG_RUNTIME_DIR/$session_subdir"
-        rmdir "$REG_RUNTIME_DIR/$tmux_pid" &> /dev/null
-
-        rm "$REG_STATE_DIR/$session_subdir/server.pid"
-        rm "$REG_STATE_DIR/$session_subdir/server.log"
-        rmdir "$REG_STATE_DIR/$session_subdir"
-        rmdir "$REG_STATE_DIR/$tmux_pid" &> /dev/null
+        command-server-terminate "$REG_RUNTIME_DIR/$session_prefix.reg.sock"
+        rm "$REG_STATE_DIR/$session_prefix.server.pid"
+        rm "$REG_STATE_DIR/$session_prefix.server.log"
     } || true
 }
