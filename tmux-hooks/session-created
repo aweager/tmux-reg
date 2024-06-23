@@ -1,0 +1,5 @@
+#!/bin/zsh -f
+
+source "${0:a:h}/tmux-hook-lib.zsh"
+
+session-created "$@"
