@@ -28,13 +28,13 @@ function session-created() {
     tmux -S "$tmux_socket" \
         set-option -t "$session_id" @reg_socket "$REG_SOCKET" \;\
         set-option -t "$session_id" @reg_server_pid "$(cat "$REG_STATE_DIR/$session_prefix.server.pid")" \;\
-        set-option -t "$session_id" @reg_parent_socket "$parent_socket" \;\
+        set-option -g "@reg_parent_socket_${session_id}" "$parent_socket" \;\
         set-environment -t "$session_id" REG_SOCKET "$REG_SOCKET"
 
     # Session-level hooks
     tmux -S "$tmux_socket" \
-        set-hook -t "$session_id" -a client-active 'run-shell -b "#{@reg_bin}/client-active"' \;\
-        set-hook -t "$session_id" -a client-detached 'run-shell -b "#{@reg_bin}/client-detached"'
+        set-hook -t "$session_id" -a client-active "run-shell -b \"'#{@reg_bin}/client-active' '$session_id'\"" \;\
+        set-hook -t "$session_id" -a client-detached "run-shell -b \"'#{@reg_bin}/client-detached' '$session_id'\""
 
     if [[ -n "$parent_socket" ]]; then
         reg -b -I "$REG_SOCKET" sync "$parent_socket"
@@ -46,12 +46,13 @@ function session-created() {
 function client-active() {
     # Update which parent we sync with
     # REG_SOCKET was updated (or deleted) by tmux to match client env
-    local old_parent new_parent
-    if [[ -n "$REG_SOCKET" ]]; then
-        new_parent="$REG_SOCKET"
-    fi
+    local session_id="$1"
+    local new_parent="$REG_SOCKET"
+    local old_parent="$(tmux display -p "#{@reg_parent_socket_${session_id}}")"
+    export REG_SOCKET="$(tmux display -p '#{@reg_socket}')"
 
-    old_parent="$(tmux display -p '#{@reg_parent_socket}')"
+    tmux set-environment REG_SOCKET "$REG_SOCKET"
+
 
     if [[ "$old_parent" == "$new_parent" ]]; then
         # No need to adjust syncing
@@ -69,20 +70,19 @@ function client-active() {
         reg -b -I "$new_parent" link "$REG_SOCKET"
     fi
 
-    tmux set-option @reg_parent_socket "$new_parent"
+    tmux set-option -g "@reg_parent_socket_${session_id}" "$new_parent"
 }
 
 function client-detached() {
     # Unlink from parent
-    local parent="$(tmux display -p '#{@reg_parent_socket}')"
-    if [[ -z "$parent" ]]; then
+    local session_id="$1"
+    local old_parent="$(tmux display -p "#{@reg_parent_socket_${session_id}}")"
+    if [[ -z "$old_parent" ]]; then
         return
     fi
 
-    if [[ -n "$old_parent" ]]; then
-        reg -I "$old_parent" unlink "$REG_SOCKET"
-        reg -I "$REG_SOCKET" unlink "$old_parent"
-    fi
+    reg -I "$old_parent" unlink "$REG_SOCKET"
+    reg -I "$REG_SOCKET" unlink "$old_parent"
 }
 
 function session-closed() {
@@ -90,11 +90,16 @@ function session-closed() {
     local session_id="$1"
     local tmux_pid="$2"
     local session_prefix="$tmux_pid.$session_id"
+    local my_socket="$REG_RUNTIME_DIR/$session_prefix.reg.sock"
 
-    setopt no_err_return no_err_exit
+    local old_parent="$(tmux display -p "#{@reg_parent_socket_${session_id}}")"
+
+    if [[ -n "$old_parent" ]]; then
+        reg -I "$old_parent" unlink "$my_socket" &> /dev/null || true
+    fi
 
     () {
-        command-server-terminate "$REG_RUNTIME_DIR/$session_prefix.reg.sock"
+        command-server-terminate "$my_socket"
         rm "$REG_STATE_DIR/$session_prefix.server.pid"
         rm "$REG_STATE_DIR/$session_prefix.server.log"
     } || true
