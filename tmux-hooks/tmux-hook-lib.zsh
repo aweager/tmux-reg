@@ -29,7 +29,8 @@ function session-created() {
         set-option -t "$session_id" @reg_socket "$REG_SOCKET" \;\
         set-option -t "$session_id" @reg_server_pid "$(cat "$REG_STATE_DIR/$session_prefix.server.pid")" \;\
         set-option -g "@reg_parent_socket_${session_id}" "$parent_socket" \;\
-        set-environment -t "$session_id" REG_SOCKET "$REG_SOCKET"
+        set-environment -t "$session_id" REG_SOCKET "$REG_SOCKET" \;\
+        set-option -t "$session_id" @reg_api_loaded 1
 
     # Session-level hooks
     tmux -S "$tmux_socket" \
