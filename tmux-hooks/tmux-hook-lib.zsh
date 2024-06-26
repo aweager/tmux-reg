@@ -4,8 +4,9 @@ setopt err_exit
 exec 2>&1
 
 REG_RUNTIME_DIR="${XDG_RUNTIME_DIR-${XDG_CACHE_DIR-${HOME}/.cache}}/tmux/reg"
-chmod 0700 "$REG_RUNTIME_DIR"
 REG_STATE_DIR="${XDG_STATE_HOME-${HOME}/.local/state}/tmux/reg"
+mkdir -p "$REG_STATE_DIR" "$REG_RUNTIME_DIR"
+chmod 1700 "$REG_RUNTIME_DIR"
 
 COMMAND_SERVER_CONFIG_DIR="${0:a:h}/../command-server"
 
