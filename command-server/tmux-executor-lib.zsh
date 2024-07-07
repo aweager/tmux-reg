@@ -2,20 +2,25 @@
 
 source "$(dirname "$(whence -p reg)")/../lib/executor-lib.zsh"
 
+TMUX_SESSION_ID="$(tmux display -p '#{session_id}')"
+TMUX_SESSION_ID="${TMUX_SESSION_ID#\$}"
+
 function .get() {
-    tmux save-buffer -b "reg_$1" - 2> /dev/null
+    tmux save-buffer -b "reg${TMUX_SESSION_ID}_$1" - 2> /dev/null
 }
 
 function .list() {
-    tmux list-buffers -f '#{?#{m:reg_*,#{buffer_name}},yes,}' -F '#{s|reg_||:buffer_name}'
+    tmux list-buffers \
+        -f "#{?#{m:reg${TMUX_SESSION_ID}_*,#{buffer_name}},yes,}" \
+        -F "#{s|reg${TMUX_SESSION_ID}_||:buffer_name}"
 }
 
 function .set-no-sync() {
-    tmux load-buffer -b "reg_$1" -
+    tmux load-buffer -b "reg${TMUX_SESSION_ID}_$1" -
 }
 
 function .delete-no-sync() {
-    tmux delete-buffer -b "reg_$1" 2> /dev/null
+    tmux delete-buffer -b "reg${TMUX_SESSION_ID}_$1" 2> /dev/null
 }
 
 function .set-link-list() {
