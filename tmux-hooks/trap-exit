@@ -2,7 +2,7 @@
 
 source "${0:a:h}/tmux-hook-lib.zsh"
 
-setopt monitor no_err_exit
+setopt no_err_exit
 exec 2> /dev/null 1>&2
 
 local session_id="$1"
@@ -17,15 +17,16 @@ trap '
         rm "$REG_STATE_DIR/$session_prefix.server.pid"
         rm "$REG_STATE_DIR/$session_prefix.server.log"
     fi
-    if [[ -n \"\$sleep_pid\" ]]; then
-        kill \$sleep_pid &> /dev/null || true
+    if [[ -n "$sleep_pid" ]]; then
+        kill $sleep_pid &> /dev/null || true
     fi
     exit
 ' EXIT INT TERM HUP QUIT
 
 while true; do
     sleep 600 &
-    wait $!
+    sleep_pid=$!
+    wait $sleep_pid
     if [[ ! -e "$my_socket" ]]; then
         exit
     fi
