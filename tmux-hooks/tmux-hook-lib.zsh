@@ -67,9 +67,9 @@ function client-active() {
     fi
 
     if [[ -n "$new_parent" ]]; then
-        reg -b -I "$REG_SOCKET" sync "$new_parent"
-        reg -b -I "$REG_SOCKET" link "$new_parent"
-        reg -b -I "$new_parent" link "$REG_SOCKET"
+        reg -bb -I "$REG_SOCKET" sync "$new_parent"
+        reg -bb -I "$REG_SOCKET" link "$new_parent"
+        reg -bb -I "$new_parent" link "$REG_SOCKET"
     fi
 
     tmux set-option -g "@reg_parent_socket_${session_id}" "$new_parent"
