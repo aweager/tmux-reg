@@ -39,9 +39,9 @@ function session-created() {
         set-hook -t "$session_id" -a client-detached "run-shell -b \"'#{@reg_bin}/client-detached' '$session_id'\""
 
     if [[ -n "$parent_socket" ]]; then
-        reg -b -I "$REG_SOCKET" sync "$parent_socket"
-        reg -b -I "$parent_socket" link "$REG_SOCKET"
-        reg -b -I "$REG_SOCKET" link "$parent_socket"
+        reg -bb -I "$REG_SOCKET" sync "$parent_socket"
+        reg -bb -I "$parent_socket" link "$REG_SOCKET"
+        reg -bb -I "$REG_SOCKET" link "$parent_socket"
     fi
 }
 
